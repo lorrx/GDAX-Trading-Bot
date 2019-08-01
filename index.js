@@ -24,12 +24,14 @@ const LTC_BTC_CURRENCY_PAIR = 'LTC-BTC';
 const ETH_BTC_CURRENCY_PAIR = 'ETH-BTC';
 const XLM_BTC_CURRENCY_PAIR = 'XLM-BTC';
 const EOS_BTC_CURRENCY_PAIR = 'EOS-BTC';
+const ZRX_BTC_CURRENCY_PAIR = 'ZRX-BTC';
 
 const BITCOIN_TICKER = 'BTC';
 const LITECOIN_TICKER = 'LTC';
 const ETHEREUM_TICKER = 'ETH';
 const STELLAR_TICKER = 'XLM';
 const EOS_TICKER = 'EOS';
+const ZRX_TICKER = 'ZRX';
 
 const SLEEP_TIME = 30000;
 
@@ -38,6 +40,7 @@ const SEED_LTC_AMOUNT = 1.0;
 const SEED_ETH_AMOUNT = 1.0;
 const SEED_XLM_AMOUNT = 122.0;
 const SEED_EOS_AMOUNT = 1.0;
+const SEED_ZRX_AMOUNT = 1.0;
 
 // Profit percentage trading a seed
 const PROFIT_PERCENTAGE = 2.0;
@@ -66,6 +69,11 @@ let averagePriceETH = null;
 let lastBuyOrderIdETH = null;
 let lastBuyOrderPriceETH = null;
 
+let askPriceZRX = null;
+let averagePriceZRX = null;
+let lastBuyOrderIdZRX = null;
+let lastBuyOrderPriceZRX = null;
+
 let btcAvailable = 0;
 let btcBalance = 0;
 
@@ -80,6 +88,9 @@ let xlmBalance = 0;
 
 let eosAvailable = 0;
 let eosBalance = 0;
+
+let zrxAvailable = 0;
+let zrxBalance = 0;
 
 let numberOfCyclesCompleted = 0;
 
@@ -119,6 +130,14 @@ const buyOrderCallbackEOS = (error, response, data) => {
 		return console.log(error);
 	if ((data != null) && (data.status === 'pending'))
 		lastBuyOrderIdEOS = data.id;
+	return console.log(data);
+};
+
+const buyOrderCallbackZRX = (error, response, data) => {
+	if (error)
+		return console.log(error);
+	if ((data != null) && (data.status === 'pending'))
+		lastBuyOrderIdZRX = data.id;
 	return console.log(data);
 };
 
@@ -170,6 +189,19 @@ const sellOrderCallbackEOS = (error, response, data) => {
 		averagePriceEOS = lastBuyOrderPriceEOS;
 		lastBuyOrderPriceEOS = null;
 		lastBuyOrderIdEOS = null;
+		numberOfCyclesCompleted++;
+	}
+	return console.log(data);
+};
+
+const sellOrderCallbackZRX = (error, response, data) => {
+	if (error)
+		return console.log(error);
+	if ((data != null) && (data.status === 'pending')) {
+		estimatedProfit = estimatedProfit + SEED_ZRX_AMOUNT * (parseFloat(data.price) - lastBuyOrderPriceZRX);
+		averagePriceZRX = lastBuyOrderPriceZRX;
+		lastBuyOrderPriceZRX = null;
+		lastBuyOrderIdZRX = null;
 		numberOfCyclesCompleted++;
 	}
 	return console.log(data);
@@ -260,6 +292,27 @@ const getProductTickerCallbackEOS = (error, response, data) => {
 	}
 };
 
+const getProductTickerCallbackZRX = (error, response, data) => {
+	if (error)
+		return console.log(error);
+	if ((data != null) && (data.ask != null) && (data.time != null)) {
+		askPriceZRX = parseFloat(data.ask);
+		if (averagePriceZRX == null)
+			console.log("[ZRX TICKER] Now: " + askPriceZRX.toFixed(6) + " BTC, time: " + data.time);
+		else
+			console.log("[ZRX TICKER] Now: " + askPriceZRX.toFixed(6) + " BTC, average: " + averagePriceZRX.toFixed(6) + " BTC, time: " + data.time);
+		const buyPrice = askPriceZRX * SEED_ZRX_AMOUNT;
+		if ((btcAvailable >= buyPrice) && (averagePriceZRX != null) && (lastBuyOrderIdZRX === null))
+			placeBuyOrderZRX();
+		else if ((zrxAvailable >= SEED_ZRX_AMOUNT) && (lastBuyOrderIdZRX != null))
+			placeSellOrderZRX();
+		if (averagePriceZRX === null)
+			averagePriceZRX = askPriceZRX;
+		else
+			averagePriceZRX = (averagePriceZRX * 1000 + askPriceZRX) / 1001;
+	}
+};
+
 const getAccountsCallback = (error, response, data) => {
 	if (error)
 		return console.log(error);
@@ -281,6 +334,9 @@ const getAccountsCallback = (error, response, data) => {
 			} else if (item.currency === EOS_TICKER) {
 				eosAvailable = parseFloat(item.available);
 				eosBalance = parseFloat(item.balance);
+			} else if (item.currency === ZRX_TICKER) {
+				zrxAvailable = parseFloat(item.available);
+				zrxBalance = parseFloat(item.balance);
 			}
 		}
 
@@ -288,13 +344,15 @@ const getAccountsCallback = (error, response, data) => {
 		console.log("[LITECOIN WALLET] Available: " + ltcAvailable.toFixed(8) + " LTC, Balance: " + ltcBalance.toFixed(8) + " LTC");
 		console.log("[ETHEREUM WALLET] Available: " + ethAvailable.toFixed(8) + " ETH, Balance: " + ethBalance.toFixed(8) + " ETH");
 		console.log("[STELLAR WALLET] Available: " + xlmAvailable.toFixed(8) + " XLM, Balance: " + xlmBalance.toFixed(8) + " XLM");
-		console.log("[EOS WALLET] Available: " + eosAvailable.toFixed(8) + " EOS, Balance: " + eosBalance.toFixed(8) + " EOS\n");
+		console.log("[EOS WALLET] Available: " + eosAvailable.toFixed(8) + " EOS, Balance: " + eosBalance.toFixed(8) + " EOS");
+		console.log("[ZRX WALLET] Available: " + zrxAvailable.toFixed(8) + " ZRX, Balance: " + zrxBalance.toFixed(8) + " ZRX\n");
 
 		console.log("[INFO] Number of cycles completed: " + numberOfCyclesCompleted + ", estimated profit: " + estimatedProfit.toFixed(8) + " BTC\n");
 
 		publicClient.getProductTicker(LTC_BTC_CURRENCY_PAIR, getProductTickerCallbackLTC);
 		publicClient.getProductTicker(XLM_BTC_CURRENCY_PAIR, getProductTickerCallbackXLM);
 		publicClient.getProductTicker(EOS_BTC_CURRENCY_PAIR, getProductTickerCallbackEOS);
+		publicClient.getProductTicker(ZRX_BTC_CURRENCY_PAIR, getProductTickerCallbackZRX);
 	}
 };
 
@@ -406,6 +464,32 @@ const getFilledPriceCallbackEOS = (error, response, data) => {
 	return console.log(data);
 };
 
+const getFilledPriceCallbackZRX = (error, response, data) => {
+	if (error)
+		return console.log(error);
+	if ((Array.isArray(data)) && (data.length >= 1)) {
+		lastBuyOrderPriceZRX = parseFloat(data[0].price);
+		let highestPrice;
+
+		if (askPriceZRX > lastBuyOrderPriceZRX)
+			highestPrice = askPriceZRX;
+		else
+			highestPrice = lastBuyOrderPriceZRX;
+		const sellPrice = highestPrice * SELL_PRICE_MULTIPLIER;
+		const sellSize = zrxAvailable - 0.000000001;
+		const sellParams =
+			{
+				'price': sellPrice.toFixed(5),
+				'size': sellSize.toFixed(8),
+				'product_id': ZRX_BTC_CURRENCY_PAIR,
+				'post_only': true,
+			};
+		console.log("");
+		console.log("\x1b[41m%s\x1b[0m", "[SELL ORDER] Price: " + sellPrice.toFixed(6) + " BTC, size: " + sellSize.toFixed(2) + " ZRX");
+		setTimeout(() => authenticatedClient.sell(sellParams, sellOrderCallbackZRX), 3000);
+	}
+	return console.log(data);
+};
 
 // Functions
 
@@ -473,6 +557,22 @@ function placeBuyOrderEOS() {
 	}
 }
 
+function placeBuyOrderZRX() {
+	const minimumBuyPrice = averagePriceZRX * MINIMUM_BUY_PRICE_MULTIPLIER;
+	if (askPriceZRX >= minimumBuyPrice) {
+		const buySize = SEED_ZRX_AMOUNT;
+		const buyParams =
+			{
+				'size': buySize.toFixed(8),
+				'product_id': ZRX_BTC_CURRENCY_PAIR,
+				'type': 'market'
+			};
+		console.log("");
+		console.log("\x1b[42m%s\x1b[0m", "[BUY ORDER] Size: " + buySize.toFixed(2) + " ZRX");
+		authenticatedClient.buy(buyParams, buyOrderCallbackZRX);
+	}
+}
+
 function placeSellOrderLTC() {
 	const params =
 		{
@@ -503,6 +603,14 @@ function placeSellOrderEOS() {
 			order_id: lastBuyOrderIdEOS
 		};
 	authenticatedClient.getFills(params, getFilledPriceCallbackEOS);
+}
+
+function placeSellOrderZRX() {
+	const params =
+		{
+			order_id: lastBuyOrderIdZRX
+		};
+	authenticatedClient.getFills(params, getFilledPriceCallbackZRX);
 }
 
 // Main logic
@@ -544,6 +652,9 @@ setInterval(() => {
 
 	eosAvailable = 0;
 	eosBalance = 0;
+
+	zrxAvailable = 0;
+	zrxBalance = 0;
 
 	publicClient = new GdaxModule.PublicClient(GDAX_URI);
 	authenticatedClient = new GdaxModule.AuthenticatedClient(KEY, SECRET, PASSPHRASE, GDAX_URI);
