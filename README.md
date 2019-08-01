@@ -1,6 +1,11 @@
 # GDAX Trading Bot
 
-This program is an automated trading system that can autonomously trade the LTC / BTC and ETH / BTC pairs in the Coinbase Pro exchange. 
+This program is an automated trading system that can autonomously trade the following currency pairs in the Coinbase Pro exchange. 
+* LTC-BTC
+* ETH-BTC
+* ZRX-BTC
+* EOS-BTC
+* XLM-BTC
 
 Keep in mind that trading is a risky activity that can involve a loss of money. You should only invest the amount you can afford to lose.
 
@@ -10,7 +15,8 @@ The trading strategy consists of issuing a large number of low value orders. The
 
 ### The seed
 
-The seed is the amount of each coin that the program will trade continuously to earn bitcoins. The greater the seed, the greater the benefit. The seed values must be set in the program variables SEED_LTC_AMOUNT and SEED_ETH_AMOUNT.
+The seed is the amount of each coin that the program will trade continuously to earn bitcoins. The greater the seed, 
+the greater the benefit. The seed values must be set in the program variables `SEED_LTC_AMOUNT`, `SEED_ETH_AMOUNT`, `SEED_ZRX_AMOUNT`, `SEED_EOS_AMOUNT` and `SEED_XLM_AMOUNT`.
 
 You should be able to buy at least 10 seeds of each coin with your initial bitcoin balance. The more seeds you can buy, the easier it will be to recover from a losing streak.
 
@@ -51,7 +57,7 @@ Save the three values of the API key in the following environment variables of t
 ### Configuration
 
 - Open the file "index.js" with a text editor
-- Set the seeds in the variables SEED_LTC_AMOUNT and SEED_ETH_AMOUNT
+- Set the seeds in the variables `SEED_LTC_AMOUNT`, `SEED_ETH_AMOUNT`, `SEED_ZRX_AMOUNT`, `SEED_EOS_AMOUNT` and `SEED_XLM_AMOUNT`.
 
 ### Execution
 
@@ -61,6 +67,12 @@ Save the three values of the API key in the following environment variables of t
 
 ## Donations
 
+### Original author
 Please consider making a donation to the following Bitcoin Confidential address (BC):
 
 B9uuWVj83v75AHNpDnmwxPFSoGooKwZiS2zL9bRQirBT7WWQaa6LfkuwbP8K9Z15xTrySeFbTzo2FdJVse9xexH9tTN25bpWvw4kDE
+
+### This author
+Please consider making a donation to the following Coinbase Bitcoin Wallet address (BTC):
+
+15T6S8HSie2CCmaKdTo8wG7Z4vinYqFkcP
