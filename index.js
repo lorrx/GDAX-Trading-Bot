@@ -3,7 +3,7 @@
 /*
  ============================================================================
  Name        : GDAX Trading Bot
- Author      : Kenshiro
+ Author      : Kenshiro, Lorrx
  Version     : 7.03
  Copyright   : GNU General Public License (GPLv3)
  Description : Trading bot for the Coinbase Pro exchange
@@ -23,18 +23,21 @@ const GDAX_URI = 'https://api.pro.coinbase.com';
 const LTC_BTC_CURRENCY_PAIR = 'LTC-BTC';
 const ETH_BTC_CURRENCY_PAIR = 'ETH-BTC';
 const XLM_BTC_CURRENCY_PAIR = 'XLM-BTC';
+const EOS_BTC_CURRENCY_PAIR = 'EOS-BTC';
 
 const BITCOIN_TICKER = 'BTC';
 const LITECOIN_TICKER = 'LTC';
 const ETHEREUM_TICKER = 'ETH';
 const STELLAR_TICKER = 'XLM';
+const EOS_TICKER = 'EOS';
 
 const SLEEP_TIME = 30000;
 
 // The seed is the amount of coins that the program will trade continuously
 const SEED_LTC_AMOUNT = 1.0;
 const SEED_ETH_AMOUNT = 1.0;
-const SEED_XLM_AMOUNT = 1.0;
+const SEED_XLM_AMOUNT = 122.0;
+const SEED_EOS_AMOUNT = 1.0;
 
 // Profit percentage trading a seed
 const PROFIT_PERCENTAGE = 2.0;
@@ -53,6 +56,11 @@ let averagePriceXLM = null;
 let lastBuyOrderIdXLM = null;
 let lastBuyOrderPriceXLM = null;
 
+let askPriceEOS = null;
+let averagePriceEOS = null;
+let lastBuyOrderIdEOS = null;
+let lastBuyOrderPriceEOS = null;
+
 let askPriceETH = null;
 let averagePriceETH = null;
 let lastBuyOrderIdETH = null;
@@ -70,6 +78,9 @@ let ethBalance = 0;
 let xlmAvailable = 0;
 let xlmBalance = 0;
 
+let eosAvailable = 0;
+let eosBalance = 0;
+
 let numberOfCyclesCompleted = 0;
 
 let estimatedProfit = 0;
@@ -82,30 +93,32 @@ let publicClient = null;
 const buyOrderCallbackLTC = (error, response, data) => {
 	if (error)
 		return console.log(error);
-
 	if ((data != null) && (data.status === 'pending'))
 		lastBuyOrderIdLTC = data.id;
-
 	return console.log(data);
 };
 
 const buyOrderCallbackETH = (error, response, data) => {
 	if (error)
 		return console.log(error);
-
 	if ((data != null) && (data.status === 'pending'))
 		lastBuyOrderIdETH = data.id;
-
 	return console.log(data);
 };
 
 const buyOrderCallbackXLM = (error, response, data) => {
 	if (error)
 		return console.log(error);
-
 	if ((data != null) && (data.status === 'pending'))
 		lastBuyOrderIdXLM = data.id;
+	return console.log(data);
+};
 
+const buyOrderCallbackEOS = (error, response, data) => {
+	if (error)
+		return console.log(error);
+	if ((data != null) && (data.status === 'pending'))
+		lastBuyOrderIdEOS = data.id;
 	return console.log(data);
 };
 
@@ -113,7 +126,6 @@ const buyOrderCallbackXLM = (error, response, data) => {
 const sellOrderCallbackLTC = (error, response, data) => {
 	if (error)
 		return console.log(error);
-
 	if ((data != null) && (data.status === 'pending')) {
 		estimatedProfit = estimatedProfit + SEED_LTC_AMOUNT * (parseFloat(data.price) - lastBuyOrderPriceLTC);
 		averagePriceLTC = lastBuyOrderPriceLTC;
@@ -121,14 +133,12 @@ const sellOrderCallbackLTC = (error, response, data) => {
 		lastBuyOrderIdLTC = null;
 		numberOfCyclesCompleted++;
 	}
-
 	return console.log(data);
 };
 
 const sellOrderCallbackETH = (error, response, data) => {
 	if (error)
 		return console.log(error);
-
 	if ((data != null) && (data.status === 'pending')) {
 		estimatedProfit = estimatedProfit + SEED_ETH_AMOUNT * (parseFloat(data.price) - lastBuyOrderPriceETH);
 		averagePriceETH = lastBuyOrderPriceETH;
@@ -136,14 +146,12 @@ const sellOrderCallbackETH = (error, response, data) => {
 		lastBuyOrderIdETH = null;
 		numberOfCyclesCompleted++;
 	}
-
 	return console.log(data);
 };
 
 const sellOrderCallbackXLM = (error, response, data) => {
 	if (error)
 		return console.log(error);
-
 	if ((data != null) && (data.status === 'pending')) {
 		estimatedProfit = estimatedProfit + SEED_XLM_AMOUNT * (parseFloat(data.price) - lastBuyOrderPriceXLM);
 		averagePriceXLM = lastBuyOrderPriceXLM;
@@ -151,7 +159,19 @@ const sellOrderCallbackXLM = (error, response, data) => {
 		lastBuyOrderIdXLM = null;
 		numberOfCyclesCompleted++;
 	}
+	return console.log(data);
+};
 
+const sellOrderCallbackEOS = (error, response, data) => {
+	if (error)
+		return console.log(error);
+	if ((data != null) && (data.status === 'pending')) {
+		estimatedProfit = estimatedProfit + SEED_EOS_AMOUNT * (parseFloat(data.price) - lastBuyOrderPriceEOS);
+		averagePriceEOS = lastBuyOrderPriceEOS;
+		lastBuyOrderPriceEOS = null;
+		lastBuyOrderIdEOS = null;
+		numberOfCyclesCompleted++;
+	}
 	return console.log(data);
 };
 
@@ -219,6 +239,27 @@ const getProductTickerCallbackXLM = (error, response, data) => {
 	}
 };
 
+const getProductTickerCallbackEOS = (error, response, data) => {
+	if (error)
+		return console.log(error);
+	if ((data != null) && (data.ask != null) && (data.time != null)) {
+		askPriceEOS = parseFloat(data.ask);
+		if (averagePriceEOS == null)
+			console.log("[EOS TICKER] Now: " + askPriceEOS.toFixed(6) + " BTC, time: " + data.time);
+		else
+			console.log("[EOS TICKER] Now: " + askPriceEOS.toFixed(6) + " BTC, average: " + averagePriceEOS.toFixed(6) + " BTC, time: " + data.time);
+		const buyPrice = askPriceEOS * SEED_EOS_AMOUNT;
+		if ((btcAvailable >= buyPrice) && (averagePriceEOS != null) && (lastBuyOrderIdEOS === null))
+			placeBuyOrderEOS();
+		else if ((eosAvailable >= SEED_EOS_AMOUNT) && (lastBuyOrderIdEOS != null))
+			placeSellOrderEOS();
+		if (averagePriceEOS === null)
+			averagePriceEOS = askPriceEOS;
+		else
+			averagePriceEOS = (averagePriceEOS * 1000 + askPriceEOS) / 1001;
+	}
+};
+
 const getAccountsCallback = (error, response, data) => {
 	if (error)
 		return console.log(error);
@@ -237,18 +278,23 @@ const getAccountsCallback = (error, response, data) => {
 			} else if (item.currency === STELLAR_TICKER) {
 				xlmAvailable = parseFloat(item.available);
 				xlmBalance = parseFloat(item.balance);
+			} else if (item.currency === EOS_TICKER) {
+				eosAvailable = parseFloat(item.available);
+				eosBalance = parseFloat(item.balance);
 			}
 		}
 
 		console.log("[BITCOIN  WALLET] Available: " + btcAvailable.toFixed(8) + " BTC, Balance: " + btcBalance.toFixed(8) + " BTC");
 		console.log("[LITECOIN WALLET] Available: " + ltcAvailable.toFixed(8) + " LTC, Balance: " + ltcBalance.toFixed(8) + " LTC");
 		console.log("[ETHEREUM WALLET] Available: " + ethAvailable.toFixed(8) + " ETH, Balance: " + ethBalance.toFixed(8) + " ETH");
-		console.log("[STELLAR WALLET] Available: " + xlmAvailable.toFixed(8) + " XLM, Balance: " + xlmBalance.toFixed(8) + " XLM\n");
+		console.log("[STELLAR WALLET] Available: " + xlmAvailable.toFixed(8) + " XLM, Balance: " + xlmBalance.toFixed(8) + " XLM");
+		console.log("[EOS WALLET] Available: " + eosAvailable.toFixed(8) + " EOS, Balance: " + eosBalance.toFixed(8) + " EOS\n");
 
 		console.log("[INFO] Number of cycles completed: " + numberOfCyclesCompleted + ", estimated profit: " + estimatedProfit.toFixed(8) + " BTC\n");
 
 		publicClient.getProductTicker(LTC_BTC_CURRENCY_PAIR, getProductTickerCallbackLTC);
 		publicClient.getProductTicker(XLM_BTC_CURRENCY_PAIR, getProductTickerCallbackXLM);
+		publicClient.getProductTicker(EOS_BTC_CURRENCY_PAIR, getProductTickerCallbackEOS);
 	}
 };
 
@@ -328,10 +374,38 @@ const getFilledPriceCallbackXLM = (error, response, data) => {
 			};
 		console.log("");
 		console.log("\x1b[41m%s\x1b[0m", "[SELL ORDER] Price: " + sellPrice.toFixed(6) + " BTC, size: " + sellSize.toFixed(2) + " XLM");
-		setTimeout(() => authenticatedClient.sell(sellParams, sellOrderCallbackXLM()), 3000);
+		setTimeout(() => authenticatedClient.sell(sellParams, sellOrderCallbackXLM), 3000);
 	}
 	return console.log(data);
 };
+
+const getFilledPriceCallbackEOS = (error, response, data) => {
+	if (error)
+		return console.log(error);
+	if ((Array.isArray(data)) && (data.length >= 1)) {
+		lastBuyOrderPriceEOS = parseFloat(data[0].price);
+		let highestPrice;
+
+		if (askPriceEOS > lastBuyOrderPriceEOS)
+			highestPrice = askPriceEOS;
+		else
+			highestPrice = lastBuyOrderPriceEOS;
+		const sellPrice = highestPrice * SELL_PRICE_MULTIPLIER;
+		const sellSize = eosAvailable - 0.000000001;
+		const sellParams =
+			{
+				'price': sellPrice.toFixed(5),
+				'size': sellSize.toFixed(8),
+				'product_id': EOS_BTC_CURRENCY_PAIR,
+				'post_only': true,
+			};
+		console.log("");
+		console.log("\x1b[41m%s\x1b[0m", "[SELL ORDER] Price: " + sellPrice.toFixed(6) + " BTC, size: " + sellSize.toFixed(2) + " EOS");
+		setTimeout(() => authenticatedClient.sell(sellParams, sellOrderCallbackEOS), 3000);
+	}
+	return console.log(data);
+};
+
 
 // Functions
 
@@ -383,6 +457,22 @@ function placeBuyOrderXLM() {
 	}
 }
 
+function placeBuyOrderEOS() {
+	const minimumBuyPrice = averagePriceEOS * MINIMUM_BUY_PRICE_MULTIPLIER;
+	if (askPriceEOS >= minimumBuyPrice) {
+		const buySize = SEED_EOS_AMOUNT;
+		const buyParams =
+			{
+				'size': buySize.toFixed(8),
+				'product_id': EOS_BTC_CURRENCY_PAIR,
+				'type': 'market'
+			};
+		console.log("");
+		console.log("\x1b[42m%s\x1b[0m", "[BUY ORDER] Size: " + buySize.toFixed(2) + " EOS");
+		authenticatedClient.buy(buyParams, buyOrderCallbackEOS);
+	}
+}
+
 function placeSellOrderLTC() {
 	const params =
 		{
@@ -405,6 +495,14 @@ function placeSellOrderXLM() {
 			order_id: lastBuyOrderIdXLM
 		};
 	authenticatedClient.getFills(params, getFilledPriceCallbackXLM);
+}
+
+function placeSellOrderEOS() {
+	const params =
+		{
+			order_id: lastBuyOrderIdEOS
+		};
+	authenticatedClient.getFills(params, getFilledPriceCallbackEOS);
 }
 
 // Main logic
@@ -443,6 +541,9 @@ setInterval(() => {
 
 	xlmAvailable = 0;
 	xlmBalance = 0;
+
+	eosAvailable = 0;
+	eosBalance = 0;
 
 	publicClient = new GdaxModule.PublicClient(GDAX_URI);
 	authenticatedClient = new GdaxModule.AuthenticatedClient(KEY, SECRET, PASSPHRASE, GDAX_URI);
