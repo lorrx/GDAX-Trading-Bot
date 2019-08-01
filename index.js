@@ -4,13 +4,13 @@
  ============================================================================
  Name        : GDAX Trading Bot
  Author      : Kenshiro, Lorrx
- Version     : 7.03
+ Version     : 7.03-2
  Copyright   : GNU General Public License (GPLv3)
  Description : Trading bot for the Coinbase Pro exchange
  ============================================================================
  */
 
-const APP_VERSION = "v7.03";
+const APP_VERSION = "v7.03-2";
 
 const GdaxModule = require('coinbase-pro');
 
